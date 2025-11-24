@@ -1,0 +1,57 @@
+---
+- name: Configurazione del Docker/Podman Registry Privato 
+  #in questo modo, anche se uno dei due motori non è presente sull'host, il registro è configurato correttamente
+  hosts: localhost
+  connection: local  
+  become: true #Docker/Podman di solito richiedono permessi di root per la gestione dei container
+
+  tasks:
+    # ----------------------------------------------------
+    # TENTATIVO 1: USA MODULI DOCKER
+    # ----------------------------------------------------
+    - name: Tenta la configurazione con Docker e se fallisce prova Podman
+      block:
+        - name: 1a. Assicura che l'immagine del Registry (Docker) sia presente
+          community.docker.docker_image:
+            name: registry:2   #immagine ufficiale per eseguire un container registry privato
+            source: pull
+            state: present
+            #opzionale ma garantisce che l'immagine sia aggiornata.
+
+        - name: 1b. Avvia il container Docker Registry
+          community.docker.docker_container:
+            name: registro_personale_andrea
+            image: registry:2     #immagine ufficiale per eseguire un container registry privato
+            state: started
+            restart_policy: always
+            ports:
+              #mappa la porta 5000 dell'host (per ora ho solo localhost ma potrei voler aggiungere dei nodi)
+              #alla porta 5000 del container
+              - "5000:5000"
+          register: registry_result #registra l'output in una variabile
+          
+        - name: 1c. Mostra stato (Successo Docker)
+          ansible.builtin.debug:
+            msg: "Docker Registry avviato con successo sulla porta 5000."
+
+      # ----------------------------------------------------
+      # RECUPERO (rescue): SE I TASK DOCKER FALLISCONO, PROVA PODMAN
+      # ----------------------------------------------------
+      rescue:
+        - name: 2a. Assicura che l'immagine del Registry (Podman) sia presente
+          containers.podman.podman_image:
+            name: registry:2
+            state: present
+            
+        - name: 2b. Avvia il container Registry (Podman)
+          containers.podman.podman_container:
+            name: registro_personale_andrea
+            image: registry:2
+            state: started
+            ports:
+              - "5000:5000"
+          register: registry_result #registra l'output in una variabile
+          
+        - name: 2c. Mostra stato (Successo Podman)
+          ansible.builtin.debug:
+            msg: "Podman Registry avviato con successo sulla porta 5000 (Docker non disponibile/fallito)."

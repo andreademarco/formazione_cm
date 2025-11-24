@@ -1,0 +1,40 @@
+FROM debian:12
+
+# Varuabili iniettate dall'esterno (playbook): nome utente SSH e il contenuto della chiave
+ARG GENERIC_USER=ansible_admin    
+ARG PUBLIC_KEY
+
+# Aggiorna il sistema e installa SSH e sudo
+RUN apt-get update && \
+    apt-get install -y openssh-server sudo && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Crea la directory per SSH
+RUN mkdir -p /var/run/sshd
+
+# Crea l'utente con home directory (-m), imposta la shell e aggiunge l'utente ai sudoers con opzione no passwd
+RUN useradd -m -s /bin/bash ${GENERIC_USER} && \
+    echo "${GENERIC_USER} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+# Configura SSH per l'utente (viene creata directory .ssh nella home dell'utente)
+RUN mkdir -p /home/${GENERIC_USER}/.ssh && \
+    chmod 700 /home/${GENERIC_USER}/.ssh
+
+# Inserisce la chiave pubblica nel file authorized_keys della directory
+RUN echo "${PUBLIC_KEY}" > /home/${GENERIC_USER}/.ssh/authorized_keys && \
+    chmod 600 /home/${GENERIC_USER}/.ssh/authorized_keys && \
+    chown -R ${GENERIC_USER}:${GENERIC_USER} /home/${GENERIC_USER}/.ssh
+#i permessi qui sono più restrittivi
+
+# Configura SSH per permettere l'autenticazione con chiave
+#disabilita accesso tramite password (solo chiave)
+RUN sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config && \
+    sed -i 's/#PubkeyAuthentication yes/PubkeyAuthentication yes/' /etc/ssh/sshd_config && \
+    sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin no/' /etc/ssh/sshd_config
+
+# Espone la porta SSH (la porta che ascolta il container)
+EXPOSE 22
+
+# Avvia il servizio SSH all'attivazione del container (-D lo mette in foreground)
+CMD ["/usr/sbin/sshd", "-D"]

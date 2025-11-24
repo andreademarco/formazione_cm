@@ -1,0 +1,36 @@
+FROM rockylinux:9
+
+ARG GENERIC_USER=ansible_admin
+ARG PUBLIC_KEY
+
+# Aggiorna il sistema e installa SSH e sudo
+RUN dnf -y update && \
+    dnf -y install openssh-server sudo && \
+    dnf clean all
+
+# Genera le chiavi host SSH
+RUN ssh-keygen -A
+
+# Crea l'utente con home directory
+RUN useradd -m -s /bin/bash ${GENERIC_USER} && \
+    echo "${GENERIC_USER} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+# Configura SSH per l'utente
+RUN mkdir -p /home/${GENERIC_USER}/.ssh && \
+    chmod 700 /home/${GENERIC_USER}/.ssh
+
+# Inserisce la chiave pubblica
+RUN echo "${PUBLIC_KEY}" > /home/${GENERIC_USER}/.ssh/authorized_keys && \
+    chmod 600 /home/${GENERIC_USER}/.ssh/authorized_keys && \
+    chown -R ${GENERIC_USER}:${GENERIC_USER} /home/${GENERIC_USER}/.ssh
+
+# Configura SSH per permettere l'autenticazione con chiave
+RUN sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config && \
+    sed -i 's/#PubkeyAuthentication yes/PubkeyAuthentication yes/' /etc/ssh/sshd_config && \
+    sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin no/' /etc/ssh/sshd_config
+
+# Espone la porta SSH
+EXPOSE 22
+
+# Avvia il servizio SSH
+CMD ["/usr/sbin/sshd", "-D"]

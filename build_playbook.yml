@@ -1,0 +1,132 @@
+---
+- name: Gestione Chiavi SSH e Build Immagini Container (Alternativo)
+  hosts: localhost
+  connection: local
+  become: false
+  vars:
+    generic_user: "ansible_admin"
+    ssh_key_path: "{{ lookup('env', 'HOME') }}/.ssh/id_ansible_admin"
+  
+  tasks:
+    - name: 0.1 Verifica che Docker sia attivo
+      ansible.builtin.command: docker info
+      register: docker_check
+      changed_when: false
+      failed_when: false
+
+    - name: 0.2 Fallisce se Docker non è attivo
+      ansible.builtin.fail:
+        msg: |
+          ❌ Docker non è in esecuzione!
+          
+          Su macOS: 
+            1. Apri Docker Desktop dall'applicazione
+            2. Aspetta che l'icona nella barra menu diventi verde
+            3. Riprova il playbook
+          
+          Su Linux: 
+            sudo systemctl start docker
+      when: docker_check.rc != 0
+
+    - name: 1.1 Genera la coppia di chiavi SSH per l'accesso ai container
+      community.crypto.openssh_keypair:
+        path: "{{ ssh_key_path }}"
+        type: rsa
+        size: 4096
+        comment: "{{ generic_user }}@ansible-container"
+        force: false
+      register: ssh_key_result
+
+    - name: 1.2 Legge la chiave pubblica appena creata
+      ansible.builtin.slurp:
+        src: "{{ ssh_key_path }}.pub"
+      register: public_key_file
+
+    - name: 1.3 Setta la chiave pubblica come variabile utilizzabile
+      ansible.builtin.set_fact:
+        public_key_content: "{{ public_key_file.content | b64decode | trim }}"
+
+    - name: 1.4 Debug - Mostra la chiave pubblica
+      ansible.builtin.debug:
+        msg: "✅ Chiave pubblica generata: {{ public_key_content[:50] }}..."
+
+    # ----------------------------------------------------
+    # BUILD CONTAINER 1: DEBIAN/UBUNTU
+    # ----------------------------------------------------
+    - name: 2.1 Build Immagine Debian con Docker CLI
+      ansible.builtin.command:
+        cmd: >
+          docker build
+          --build-arg PUBLIC_KEY="{{ public_key_content }}"
+          --build-arg GENERIC_USER="{{ generic_user }}"
+          -t {{ generic_user }}/debian-ssh-server:latest
+          -f Dockerfile.debian
+          .
+      register: debian_build
+      changed_when: "'Successfully built' in debian_build.stdout or 'Successfully tagged' in debian_build.stdout"
+
+    - name: 2.2 Mostra risultato build Debian
+      ansible.builtin.debug:
+        msg: "✅ Immagine Debian creata: {{ generic_user }}/debian-ssh-server:latest"
+
+    # ----------------------------------------------------
+    # BUILD CONTAINER 2: CENTOS/ROCKY
+    # ----------------------------------------------------
+    - name: 3.1 Build Immagine Rocky Linux con Docker CLI
+      ansible.builtin.command:
+        cmd: >
+          docker build
+          --build-arg PUBLIC_KEY="{{ public_key_content }}"
+          --build-arg GENERIC_USER="{{ generic_user }}"
+          -t {{ generic_user }}/centos-ssh-server:latest
+          -f Dockerfile.centos
+          .
+      register: centos_build
+      changed_when: "'Successfully built' in centos_build.stdout or 'Successfully tagged' in centos_build.stdout"
+
+    - name: 3.2 Mostra risultato build Rocky Linux
+      ansible.builtin.debug:
+        msg: "✅ Immagine Rocky Linux creata: {{ generic_user }}/centos-ssh-server:latest"
+
+    # ----------------------------------------------------
+    # VERIFICA IMMAGINI
+    # ----------------------------------------------------
+    - name: 4.1 Verifica immagini create
+      ansible.builtin.command: docker images {{ generic_user }}/*
+      register: docker_images
+      changed_when: false
+
+    - name: 4.2 Mostra immagini create
+      ansible.builtin.debug:
+        var: docker_images.stdout_lines
+
+    # ----------------------------------------------------
+    # RIEPILOGO
+    # ----------------------------------------------------
+    - name: 5. Riepilogo finale
+      ansible.builtin.debug:
+        msg:
+          - ""
+          - "╔════════════════════════════════════════════════════════════╗"
+          - "║          BUILD COMPLETATE CON SUCCESSO! ✅                ║"
+          - "╚════════════════════════════════════════════════════════════╝"
+          - ""
+          - "📁 Chiavi SSH:"
+          - "   Privata: {{ ssh_key_path }}"
+          - "   Pubblica: {{ ssh_key_path }}.pub"
+          - ""
+          - "🐳 Immagini Docker create:"
+          - "   • {{ generic_user }}/debian-ssh-server:latest"
+          - "   • {{ generic_user }}/centos-ssh-server:latest"
+          - ""
+          - "🚀 Per avviare i container:"
+          - "   docker run -d -p 2222:22 --name debian-ssh {{ generic_user }}/debian-ssh-server:latest"
+          - "   docker run -d -p 2223:22 --name centos-ssh {{ generic_user }}/centos-ssh-server:latest"
+          - ""
+          - "🔐 Per connettersi via SSH:"
+          - "   ssh -i {{ ssh_key_path }} -p 2222 {{ generic_user }}@localhost"
+          - "   ssh -i {{ ssh_key_path }} -p 2223 {{ generic_user }}@localhost"
+          - ""
+          - "🧪 Per testare sudo:"
+          - "   ssh -i {{ ssh_key_path }} -p 2222 {{ generic_user }}@localhost 'sudo whoami'"
+          - ""

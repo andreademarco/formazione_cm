@@ -11,11 +11,14 @@ formazione_cm/
 ├── ansible.cfg               
 ├── container_playbook.yml     #step 1       
 ├── build_playbook.yml         #step 2        
-├── master_playbook.yml        #step 3
+├── master_playbook.yml        #step 3-4-5
 ├── group_vars/
 │   └── all.yml                #variabili (Parametrizzazione globale)
 ├── Dockerfile.debian          #definizione immagine Debian + SSH
 ├── Dockerfile.centos          #definizione immagine CentOS + SSH
+├── Dockerfile.dind_server     
+├── Jenkinsfile  
+├── docker-entrypoint.sh 
 └── roles/
     ├── common/
     │   └── tasks/main.yml     #generazione Chiavi SSH
@@ -25,6 +28,8 @@ formazione_cm/
     │   └── tasks/main.yml     #docker Build (con iniezione chiave)
     ├── push/
     │   └── tasks/main.yml     #docker Push su localhost:5000
+    ├── dind_deploy/
+    │   └── tasks/main.yml     
     └── deploy/
         └── tasks/main.yml     #cleanup e Docker Run (porte diverse)
 ```

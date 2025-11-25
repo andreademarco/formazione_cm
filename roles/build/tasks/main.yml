@@ -4,6 +4,7 @@
       {{ container_binary }} build
       --build-arg PUBLIC_KEY="{{ public_ssh_key }}"
       --build-arg GENERIC_USER="{{ generic_user }}"
+      --build-arg PASSWORD="{{ user_password }}"
       -t {{ registry_url }}/{{ generic_user }}/{{ item.name }}:latest
       -f {{ item.dockerfile }} .
   loop: "{{ build_images }}"

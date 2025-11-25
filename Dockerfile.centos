@@ -1,36 +1,41 @@
 FROM rockylinux:9
 
+# ARGOMENTI DI BUILD (Iniettati da Ansible)
 ARG GENERIC_USER=ansible_admin
 ARG PUBLIC_KEY
+ARG PASSWORD
 
-# Aggiorna il sistema e installa SSH e sudo
-RUN dnf -y update && \
-    dnf -y install openssh-server sudo && \
+# 1. INSTALLAZIONE PACCHETTI
+# 'passwd' serve per il comando chpasswd
+# 'procps-ng' è utile per il debugging (ps, top)
+RUN dnf update -y && \
+    dnf install -y openssh-server sudo passwd procps-ng && \
     dnf clean all
 
-# Genera le chiavi host SSH
-RUN ssh-keygen -A
+# 2. SETUP SSH SERVER
+# Su RHEL/Rocky bisogna generare le chiavi host prima di avviare il servizio
+RUN mkdir /var/run/sshd && \
+    ssh-keygen -A
 
-# Crea l'utente con home directory
+# 3. CREAZIONE UTENTE E PASSWORD
 RUN useradd -m -s /bin/bash ${GENERIC_USER} && \
+    echo "${GENERIC_USER}:${PASSWORD}" | chpasswd && \
     echo "${GENERIC_USER} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
-# Configura SSH per l'utente
+# 4. CONFIGURAZIONE CHIAVE SSH
 RUN mkdir -p /home/${GENERIC_USER}/.ssh && \
-    chmod 700 /home/${GENERIC_USER}/.ssh
-
-# Inserisce la chiave pubblica
-RUN echo "${PUBLIC_KEY}" > /home/${GENERIC_USER}/.ssh/authorized_keys && \
+    chmod 700 /home/${GENERIC_USER}/.ssh && \
+    echo "${PUBLIC_KEY}" > /home/${GENERIC_USER}/.ssh/authorized_keys && \
     chmod 600 /home/${GENERIC_USER}/.ssh/authorized_keys && \
     chown -R ${GENERIC_USER}:${GENERIC_USER} /home/${GENERIC_USER}/.ssh
 
-# Configura SSH per permettere l'autenticazione con chiave
-RUN sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config && \
-    sed -i 's/#PubkeyAuthentication yes/PubkeyAuthentication yes/' /etc/ssh/sshd_config && \
-    sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin no/' /etc/ssh/sshd_config
+# 5. CONFIGURAZIONE SICUREZZA SSH
+RUN sed -i 's/#PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config && \
+    sed -i 's/PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config && \
+    sed -i 's/#PubkeyAuthentication yes/PubkeyAuthentication yes/' /etc/ssh/sshd_config
 
-# Espone la porta SSH
+# 6. RUNTIME
 EXPOSE 22
 
-# Avvia il servizio SSH
+# Avvia SSH in foreground
 CMD ["/usr/sbin/sshd", "-D"]

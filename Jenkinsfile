@@ -2,6 +2,10 @@ pipeline {
     agent any
 
     environment {
+        // FIX CRUCIALE: Aggiungi i percorsi dove si trovano docker e ansible su macOS
+        // Aggiungiamo /usr/local/bin e /opt/homebrew/bin al PATH esistente
+        PATH = "/usr/local/bin:/opt/homebrew/bin:$PATH"
+        
         REGISTRY_URL = 'localhost:5000'
         IMAGE_NAME = 'ansible_admin/ci-app'
     }
@@ -26,6 +30,7 @@ pipeline {
         stage('Build Image') {
             steps {
                 script {
+                    // Ora il comando docker dovrebbe essere trovato
                     sh "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} -f Dockerfile.debian --build-arg PUBLIC_KEY='dummy_key' --build-arg PASSWORD='dummy_pass' ."
                     sh "docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${REGISTRY_URL}/${IMAGE_NAME}:${IMAGE_TAG}"
                 }

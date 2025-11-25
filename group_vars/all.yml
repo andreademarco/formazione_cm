@@ -1,0 +1,29 @@
+container_binary: docker # O 'podma', sto parametrizzando le scelte in questo file globale'
+
+# Configurazione Utente e SSH
+generic_user: "ansible_admin"
+ssh_key_path: "{{ lookup('env', 'HOME') }}/.ssh/id_ansible_admin"
+
+# Configurazione Registry
+registry_name: "local_registry"
+registry_port: 5000
+registry_url: "localhost:{{ registry_port }}"
+
+# Definizione Immagini da Costruire
+build_images:
+  - name: debian-ssh-server
+    dockerfile: Dockerfile.debian
+    os_type: debian
+  - name: centos-ssh-server
+    dockerfile: Dockerfile.centos
+    os_type: centos
+
+# Configurazione Deploy (Run)
+# Qui definiamo le porte host per evitare conflitti (2221, 2222)
+deploy_containers:
+  - name: container_debian
+    image: debian-ssh-server
+    host_port: 2221
+  - name: container_centos
+    image: centos-ssh-server
+    host_port: 2223

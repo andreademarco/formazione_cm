@@ -1,0 +1,6 @@
+- name: "Push delle Immagini sul Registry Locale"
+  ansible.builtin.command:
+    cmd: "{{ container_binary }} push {{ registry_url }}/{{ generic_user }}/{{ item.name }}:latest"
+  loop: "{{ build_images }}"
+  register: push_output
+  changed_when: "'Pushed' in push_output.stdout"

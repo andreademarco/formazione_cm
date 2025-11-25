@@ -1,0 +1,33 @@
+- name: "Rileva il binario del container engine (Docker o Podman)"
+  ansible.builtin.shell: |
+    if command -v docker >/dev/null 2>&1; then echo "docker"; 
+    elif command -v podman >/dev/null 2>&1; then echo "podman"; 
+    else echo "none"; fi
+  register: engine_check
+  changed_when: false
+
+- name: "Imposta la variabile container_binary dinamica"
+  ansible.builtin.set_fact:
+    container_binary: "{{ engine_check.stdout }}"
+
+- name: "Fallisci se nessun engine è trovato"
+  ansible.builtin.fail:
+    msg: "Nessun container engine (Docker/Podman) trovato!"
+  when: container_binary == "none"
+
+- name: "Genera chiavi SSH"
+  community.crypto.openssh_keypair:
+    path: "{{ ssh_key_path }}"
+    type: rsa
+    size: 4096
+    force: false
+  register: ssh_key_result
+
+- name: "Legge la chiave pubblica"
+  ansible.builtin.slurp:
+    src: "{{ ssh_key_path }}.pub"
+  register: pub_key_content
+
+- name: "Setta fact chiave pubblica"
+  ansible.builtin.set_fact:
+    public_ssh_key: "{{ pub_key_content.content | b64decode | trim }}"

@@ -1,0 +1,11 @@
+- name: "Build delle Immagini Container"
+  ansible.builtin.command:
+    cmd: >
+      {{ container_binary }} build
+      --build-arg PUBLIC_KEY="{{ public_ssh_key }}"
+      --build-arg GENERIC_USER="{{ generic_user }}"
+      -t {{ registry_url }}/{{ generic_user }}/{{ item.name }}:latest
+      -f {{ item.dockerfile }} .
+  loop: "{{ build_images }}"
+  register: build_output
+  changed_when: "'Successfully built' in build_output.stdout or 'Successfully tagged' in build_output.stdout"

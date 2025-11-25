@@ -1,0 +1,16 @@
+---
+- name: Pipeline Completa Container (Build, Push, Deploy)
+  hosts: localhost
+  connection: local
+  become: false # Diventa true solo se l' utente non può usare docker senza sudo
+  
+  # Carica le variabili globali
+  vars_files:
+    - group_vars/all.yml
+
+  roles:
+    - role: common    # 1. Rileva Engine e crea Chiavi
+    - role: registry  # 2. Avvia Registry
+    - role: build     # 3. Costruisce Immagini
+    - role: push      # 4. Push su Registry
+    - role: deploy    # 5. Avvia Container senza conflitti

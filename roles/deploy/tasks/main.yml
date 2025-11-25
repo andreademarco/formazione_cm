@@ -1,0 +1,18 @@
+- name: "Rimuovi vecchi container se esistono (Cleanup)"
+  ansible.builtin.command: "{{ container_binary }} rm -f {{ item.name }}"
+  loop: "{{ deploy_containers }}"
+  ignore_errors: true # Ignora se il container non esiste
+
+- name: "Run dei Container (Deploy)"
+  ansible.builtin.command:
+    cmd: >
+      {{ container_binary }} run -d
+      --name {{ item.name }}
+      -p {{ item.host_port }}:22
+      {{ registry_url }}/{{ generic_user }}/{{ item.image }}:latest
+  loop: "{{ deploy_containers }}"
+  
+- name: "Mostra porte mappate per l'accesso SSH"
+  ansible.builtin.debug:
+    msg: "Container {{ item.name }} accessibile via SSH su localhost:{{ item.host_port }}"
+  loop: "{{ deploy_containers }}"

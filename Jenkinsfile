@@ -17,7 +17,6 @@ pipeline {
         stage('Determine Version') {
             steps {
                 script {
-                    // Ottiene il numero di build corrente di Jenkins per il tag progressivo
                     def buildNumber = env.BUILD_NUMBER
                     env.IMAGE_TAG = "v1.0.${buildNumber}"
                     echo "Building new image with tag: ${env.IMAGE_TAG}"

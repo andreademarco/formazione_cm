@@ -1,10 +1,9 @@
 pipeline {
-    agent any 
+    agent any
 
     environment {
         REGISTRY_URL = 'localhost:5000'
         IMAGE_NAME = 'ansible_admin/ci-app'
-        # REGISTRY_CREDENTIALS = credentials('docker-registry-login') 
     }
 
     stages {
@@ -27,7 +26,7 @@ pipeline {
         stage('Build Image') {
             steps {
                 script {
-                    sh "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} -f Dockerfile.debian ."
+                    sh "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} -f Dockerfile.debian --build-arg PUBLIC_KEY='dummy_key' --build-arg PASSWORD='dummy_pass' ."
                     sh "docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${REGISTRY_URL}/${IMAGE_NAME}:${IMAGE_TAG}"
                 }
             }
@@ -36,7 +35,6 @@ pipeline {
         stage('Push to Registry') {
             steps {
                 script {
-
                     echo "Pushing ${IMAGE_NAME}:${IMAGE_TAG} to ${REGISTRY_URL}"
                     sh "docker push ${REGISTRY_URL}/${IMAGE_NAME}:${IMAGE_TAG}"
                 }
@@ -45,8 +43,7 @@ pipeline {
         
         stage('Ansible Deploy (Placeholder)') {
             steps {
-                echo "Ansible deploy step will be implemented next. It will use the generated image: ${REGISTRY_URL}/${IMAGE_NAME}:${IMAGE_TAG}"
-                
+                echo "Ansible deploy step will be implemented next. It will use: ${REGISTRY_URL}/${IMAGE_NAME}:${IMAGE_TAG}"
             }
         }
     }

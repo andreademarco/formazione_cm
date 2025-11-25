@@ -1,43 +1,41 @@
+# Base Debian
 FROM debian:12
 
-# ARGOMENTI (Ricevuti da Ansible)
+# ARGOMENTI
 ARG GENERIC_USER=ansible_admin
 ARG PUBLIC_KEY
 ARG PASSWORD
 
-# --- 1. INSTALLAZIONE SSH e DOCKER ---
-# Installo i pacchetti essenziali per SSH, Sudo e, soprattutto, Docker CLI e Daemon.
+# 1. INSTALLAZIONE SSH e DOCKER
 RUN apt-get update && \
-    apt-get install -y openssh-server sudo passwd curl git iproute2 && \
-    # Installa Docker (richiede la configurazione dei repository)
-    apt-get install -y docker.io && \
+    apt-get install -y openssh-server sudo passwd curl git iproute2 docker.io && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# --- 2. SETUP UTENTE E PASSWORD (Come prima, ma necessario per l'accesso) ---
+# 2. SETUP UTENTE
 RUN mkdir -p /var/run/sshd && \
     useradd -m -s /bin/bash ${GENERIC_USER} && \
     echo "${GENERIC_USER}:${PASSWORD}" | chpasswd && \
     echo "${GENERIC_USER} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
-# --- 3. CONFIGURAZIONE CHIAVE SSH ---
+# 3. CONFIGURAZIONE SSH
 RUN mkdir -p /home/${GENERIC_USER}/.ssh && \
     chmod 700 /home/${GENERIC_USER}/.ssh && \
     echo "${PUBLIC_KEY}" > /home/${GENERIC_USER}/.ssh/authorized_keys && \
     chmod 600 /home/${GENERIC_USER}/.ssh/authorized_keys && \
     chown -R ${GENERIC_USER}:${GENERIC_USER} /home/${GENERIC_USER}/.ssh
 
-# Disabilita il login root e l'autenticazione via password
+# Disabilita login root e password
 RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin no/' /etc/ssh/sshd_config && \
     sed -i 's/PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config && \
     sed -i 's/#PubkeyAuthentication yes/PubkeyAuthentication yes/' /etc/ssh/sshd_config
 
-# --- 4. CONFIGURAZIONE AVVIO (Entrypoint) ---
-# Uso uno script che avvia ENTRAMBI i servizi.
+# 4. ENTRYPOINT SCRIPT
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-# --- 5. RUNTIME ---
-EXPOSE 22  # Porta SSH
-EXPOSE 2375 # Porta Docker API (se necessaria, ma usiamo il socket)
+# 5. RUNTIME 
+EXPOSE 22
+EXPOSE 2375
+
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]

@@ -1,0 +1,22 @@
+---
+- name: "Rimuovi vecchio container DIND se esiste (Cleanup)"
+  ansible.builtin.command: "{{ container_binary }} rm -f {{ dind_container.name }}"
+  ignore_errors: true
+
+- name: "Run del Container DIND (Privileged Mode)"
+  ansible.builtin.command:
+    cmd: >
+      {{ container_binary }} run -d
+      --privileged 
+      --name {{ dind_container.name }}
+      -p {{ dind_container.host_ssh_port }}:22
+      {{ registry_url }}/{{ generic_user }}/{{ dind_container.image }}:latest
+  register: dind_run
+  changed_when: true
+
+- name: "Mostra info accesso DIND"
+  ansible.builtin.debug:
+    msg: 
+      - "Container DIND avviato: {{ dind_container.name }}"
+      - "Accessibile via SSH su: localhost:{{ dind_container.host_ssh_port }}"
+      - "Questo container può eseguire comandi Docker al suo interno."

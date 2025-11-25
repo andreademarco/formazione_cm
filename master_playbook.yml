@@ -14,3 +14,4 @@
     - role: build     # 3. Costruisce Immagini
     - role: push      # 4. Push su Registry
     - role: deploy    # 5. Avvia Container senza conflitti
+    - role: dind_deploy # 6. Deploy del container speciale

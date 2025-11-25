@@ -24,6 +24,14 @@ build_images:
   - name: centos-ssh-server
     dockerfile: Dockerfile.centos
     os_type: centos
+  - name: dind-ssh-server
+    dockerfile: Dockerfile.dind_server
+    os_type: dind
+
+dind_container:
+  name: container_dind_jenkins_agent
+  image: dind-ssh-server
+  host_ssh_port: 2230
 
 # Configurazione Deploy (Run)
 # Qui definiamo le porte host per evitare conflitti (2221, 2222)
